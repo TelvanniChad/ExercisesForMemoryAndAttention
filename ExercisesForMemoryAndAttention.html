@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,user-scalable=no">
+    <title>Exercises for Memory and Attention</title>
+    <style>
+      body {
+        text-align: center;
+        margin: 0px;
+        padding: 0px;
+      }
+
+      #correctAnswers {
+        color: green;
+      }
+
+      #visibilityDiv {
+        width: 500px;
+      }
+
+      #incorrectAnswers {
+        color: red;
+      }
+
+      #progress {
+        top: 1px;
+        right: 20px;
+        width: 100px;
+        height: 50px;
+        position: fixed;
+        text-align: center;
+        font-size: 30px;
+        padding-top: 10px;
+      }
+
+      #startButton, #nextExerciseButton {
+        height: 50px;
+        width: 180px;
+        font-size: 30px;
+        margin-top: 10px;
+        border-radius: 15px;
+        outline: none;
+        color: green;
+      }
+
+      #nextExerciseButton {
+        width: 300px;
+        margin-left: 50px;
+        visibility: hidden;
+      }
+
+      #symbolsBottom {
+        visibility: hidden;
+      }
+
+      #timer {
+        top: 1px;
+        left: 20px;
+        width: 100px;
+        height: 50px;
+        position: fixed;
+        text-align: center;
+        font-size: 30px;
+        padding-top: 10px;
+      }
+
+      .visibilityDivBigger {
+        height: 150px;
+      }
+
+      .visibilityDivSmaller {
+        height: 0px;
+      }
+
+      .ok-button {
+        margin-left: 10px;
+        font-size: 35px;
+        border-radius: 15px;
+        color: green;
+      }
+
+      .topSymbol, .bottomSymbol, .correctAnswer, .incorrectAnswer {
+        display: inline-block;
+        width: 150px;
+        height: 50px;
+        font-size: 70px;
+        padding: 20px;
+        padding-top: 5px;
+        padding-bottom: 35px;
+        margin: 20px;
+        border: 2px solid white;
+        border-radius: 15px;
+      }
+
+      .correctAnswer {
+        color: green;
+        border: 2px solid green;
+      }
+
+      .incorrectAnswer {
+        color: red;
+        border: 2px solid red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="timer">
+      <span id="seconds">0</span>
+    </div>
+    <div id="progress">
+      <span id="correctAnswers">0</span> : <span id="incorrectAnswers">0</span>
+    </div>
+    <div>
+      <button id="startButton" onclick="start()">S T A R T</button>
+      <button id="nextExerciseButton" onclick="nextExercise()">N E X T</button>
+    </div>
+    <div id="exercises">
+      <div id="symbolsTop">
+        <!-- will be added through JavaScript -->
+      </div>
+      <div id="visibilityDiv" class="visibilityDivSmaller"></div>
+      <div id="symbolsBottom">
+        <div class="bottomSymbol" id="bottomSymbol1" onclick="answered(this)"></div>
+        <div class="bottomSymbol" id="bottomSymbol2" onclick="answered(this)"></div>
+        <div class="bottomSymbol" id="bottomSymbol3" onclick="answered(this)"></div>
+      </div>
+    </div>
+  </body>
+  <script type="text/javascript">
+    function answered(element) {
+      // if current exercise was not yet answered
+      if (notAnswered === true) {
+        notAnswered = false;
+        symbolsTopEl.style.visibility = 'visible';
+        correctSymbolElementTop.className = 'correctAnswer';
+        correctSymbolElementBottom.className = 'correctAnswer';
+        // if answer is incorrect
+        if (correctSymbolElementBottom.id !== element.id) {
+          element.className = 'incorrectAnswer';
+          incorrectAnswers += 1;
+        } else {
+          correctAnswers += 1;
+        };
+        updateScore();
+      };
+    };
+
+    function assignSymbolsToElements(elements, symbolsIndexes, correctSymbolIndex) {
+      for (var i = 0; i < elements.length; i++) {
+        elements[i].appendChild(document.createTextNode(allSymbols[symbolsIndexes[i]]));
+        // find top and bottom correct symbol elements
+        if (symbolsIndexes[i] === correctSymbolIndex) {
+          if (elements[i].className === 'topSymbol') {
+            correctSymbolElementTop = elements[i];
+          } else {
+            correctSymbolElementBottom = elements[i];
+          };
+        };
+      };
+    };
+
+    function bottomSymbolsAppear() {
+      symbolsBottomEl.style.visibility = 'visible';
+      visibilityDiv.className = 'visibilityDivSmaller';
+      symbolsBottomEl.scrollIntoView();
+    };
+
+    function getElementsByClassName(className) {
+      var htmlCollection = [];
+      if (document.getElementsByClassName) {
+        htmlCollection = document.getElementsByClassName(className);
+      } else {
+        htmlCollection = document.querySelectorAll('.' + className);
+      };
+      var elements = [];
+      for (var i = 0; i < htmlCollection.length; i++) {
+        elements.push(htmlCollection[i])
+      }
+      return elements;
+    };
+
+    function getSymbolsIndexes(indexesAlreadyInUse) {
+      var symbolsIndexes = [];
+
+      for (var i = 0; i < symbolsAmount; i++) {
+        var randomSymbolIndex = Math.floor(Math.random() * allSymbols.length);
+        // find unique symbol index
+        while (
+          symbolIndexIsAlreadyPresent(symbolsIndexes, randomSymbolIndex)
+          || symbolIndexIsAlreadyPresent(indexesAlreadyInUse, randomSymbolIndex)
+        ) {
+          randomSymbolIndex = Math.floor(Math.random() * allSymbols.length);
+        };
+        symbolsIndexes.push(randomSymbolIndex);
+      };
+
+      return symbolsIndexes;
+    };
+
+    function nextExercise() {
+      // reset some values
+      clearTimeout(timerTimeout);
+      clearTimeout(bottomSymbolsAppearTimeout);
+      notAnswered = true;
+      symbolsTopEl.style.visibility = 'visible';
+      visibilityDiv.className = 'visibilityDivSmaller';
+      symbolsBottomEl.style.visibility = 'hidden';
+      resetClassesNames();
+      resetSymbols();
+      resetTime();
+      printRemainingTime();
+    };
+
+    function printRemainingTime() {
+      var s = Math.round((timeLimit - (new Date - exerciseStartTime)) / 1000);
+
+      while (secondsEl.firstChild) {
+        secondsEl.removeChild(secondsEl.lastChild);
+      };
+
+      if (s > 0) {
+        secondsEl.appendChild(document.createTextNode(s.toString()));
+        timerTimeout = setTimeout(printRemainingTime, 1000);
+      } else {
+        // if time ran out
+        secondsEl.appendChild(document.createTextNode('0'));
+        symbolsTopEl.style.visibility = 'hidden';
+        visibilityDiv.className = 'visibilityDivBigger';
+        bottomSymbolsAppearTimeout = setTimeout(bottomSymbolsAppear, 1000);
+      };
+    };
+
+    function resetClassesNames() {
+      for (var i = 0; i < symbolsAmount; i++) {
+        topSymbolsElements[i].className = 'topSymbol';
+        bottomSymbolsElements[i].className = 'bottomSymbol';
+      };
+    };
+
+    function resetSymbols() {
+      for (var i = 0; i < topSymbolsElements.length; i++) {
+        while (topSymbolsElements[i].firstChild) {
+          topSymbolsElements[i].removeChild(topSymbolsElements[i].lastChild);
+        };
+      };
+
+      for (var i = 0; i < bottomSymbolsElements.length; i++) {
+        while (bottomSymbolsElements[i].firstChild) {
+          bottomSymbolsElements[i].removeChild(bottomSymbolsElements[i].lastChild);
+        };
+      };
+
+      // get new top symbols indexes from allSymbols
+      topSymbolsIndexes = getSymbolsIndexes([]);
+      // choose correct symbol index
+      correctSymbolIndex = topSymbolsIndexes[Math.floor(Math.random() * topSymbolsIndexes.length)];
+      // assign symbols to topSymbolsElements
+      assignSymbolsToElements(topSymbolsElements, topSymbolsIndexes, correctSymbolIndex);
+      // get new bottom symbols indexes from allSymbols
+      bottomSymbolsIndexes = getSymbolsIndexes(topSymbolsIndexes);
+      // replace one bottom symbol index with correctSymbolIndex
+      bottomSymbolsIndexes[Math.floor(Math.random() * bottomSymbolsIndexes.length)] = correctSymbolIndex;
+      // assign symbols to bottomSymbolsElements
+      assignSymbolsToElements(bottomSymbolsElements, bottomSymbolsIndexes, correctSymbolIndex);
+    };
+
+    function resetTime() {
+      while (secondsEl.firstChild) {
+        secondsEl.removeChild(secondsEl.lastChild);
+      };
+      secondsEl.appendChild(document.createTextNode('0'));
+      exerciseStartTime = new Date();
+    };
+
+    function start() {
+      document.getElementById('nextExerciseButton').style.visibility = 'visible';
+      correctAnswers = 0;
+      incorrectAnswers = 0;
+      updateScore();
+      // start next exercise
+      nextExercise();
+    };
+
+    function symbolIndexIsAlreadyPresent(symbolsIndexes, randomSymbolIndex) {
+      for (var i = 0; i < symbolsIndexes.length; i++) {
+        if (symbolsIndexes[i] === randomSymbolIndex) {
+          return true;
+        };
+      };
+      return false;
+    };
+
+    function updateScore() {
+      while (correctAnswersEl.firstChild) {
+        correctAnswersEl.removeChild(correctAnswersEl.lastChild);
+      };
+      correctAnswersEl.appendChild(document.createTextNode(correctAnswers.toString()));
+
+      while (incorrectAnswersEl.firstChild) {
+        incorrectAnswersEl.removeChild(incorrectAnswersEl.lastChild);
+      };
+      incorrectAnswersEl.appendChild(document.createTextNode(incorrectAnswers.toString()));
+    };
+
+
+    var correctAnswersEl = document.getElementById('correctAnswers');
+    var exercisesEl = document.getElementById('exercises');
+    var incorrectAnswersEl = document.getElementById('incorrectAnswers');
+    var secondsEl = document.getElementById('seconds');
+    var symbolsBottomEl = document.getElementById('symbolsBottom');
+    var symbolsTopEl = document.getElementById('symbolsTop');
+    // visibilityDiv will be used to deal with the visibility issues on android
+    var visibilityDiv = document.getElementById('visibilityDiv');
+
+    var bottomSymbolsElements = getElementsByClassName('bottomSymbol');
+    var symbolsAmount = bottomSymbolsElements.length;
+    // add top symbols
+    for (var i = 1; i <= symbolsAmount; i++) {
+      var symbolEl = document.createElement('div');
+      symbolEl.className = 'topSymbol';
+      symbolEl.id = symbolEl.className + i;
+      symbolsTopEl.appendChild(symbolEl);
+    };
+    var topSymbolsElements = getElementsByClassName('topSymbol');
+
+    var correctAnswers = 0;
+    var correctSymbolElementTop = null;
+    var correctSymbolElementBottom = null;
+    var correctSymbolIndex = null;
+    var bottomSymbolsAppearTimeout = null;
+    // bottom symbols indexes in allSymbols array
+    var bottomSymbolsIndexes = [];
+    var exerciseStartTime = null;
+    var incorrectAnswers = 0;
+    var notAnswered = true;
+    var timeLimit = 10000; // ms
+    var timerTimeout = null;
+    // top symbols indexes in allSymbols array
+    var topSymbolsIndexes = [];
+
+    var allSymbols = [
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
+      'R',
+      'S',
+      'T',
+      'U',
+      'V',
+      'W',
+      'X',
+      'Y',
+      'Z',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '!',
+      '#',
+      '%',
+      '*',
+      '=',
+      '?',
+      '@',
+      '$',
+      '^',
+      '&',
+      '-',
+      '<',
+      '>',
+      '+',
+      ':',
+      '.',
+      ',',
+      '//\\\\',
+      ';'
+    ];
+  </script>
+</html>
